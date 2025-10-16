@@ -170,10 +170,15 @@ class TimeoutInterceptor(grpc.UnaryUnaryClientInterceptor, grpc.UnaryStreamClien
             timeout: The timeout in seconds that will be applied to all requests when this interceptor is used.
         """
         self.timeout = timeout
+        self._timeout_details_cache = {}
 
     def _intercept_call(self, continuation, client_call_details, request):
-        client_call_details = client_call_details._replace(timeout=self.timeout)
-        return continuation(client_call_details, request)
+        key = (id(client_call_details), self.timeout)
+        cached_details = self._timeout_details_cache.get(key)
+        if cached_details is None:
+            cached_details = client_call_details._replace(timeout=self.timeout)
+            self._timeout_details_cache[key] = cached_details
+        return continuation(cached_details, request)
 
     def intercept_unary_unary(self, continuation, client_call_details, request):
         """Intercepts a unary-unary RPC call."""
