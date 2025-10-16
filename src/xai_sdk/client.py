@@ -126,12 +126,23 @@ def create_channel_credentials(
     if not api_key:
         raise ValueError("Empty xAI API key provided.")
 
-    # Create a channel to connect to the API host. Use the API key for authentication.
-    call_credentials = grpc.metadata_call_credentials(_APIAuthPlugin(api_key, metadata))
+    # Reuse SSL and local channel credentials when possible to avoid repeated allocation
+    # These global singletons are safe as grpc.ssl_channel_credentials() and grpc.local_channel_credentials()
+    # are idempotent and stateless (per grpc python documentation).
+    # (If you have different credential options, you'd want cache keys per-args, but this matches the existing usage)
+
+    # Minor optimization: move plugin creation below channel selection to avoid its cost if it will not be used
     if api_host.startswith("localhost:"):
-        channel_credentials = grpc.local_channel_credentials()
+        if not hasattr(create_channel_credentials, "_local_creds"):
+            create_channel_credentials._local_creds = grpc.local_channel_credentials()
+        channel_credentials = create_channel_credentials._local_creds
     else:
-        channel_credentials = grpc.ssl_channel_credentials()
+        if not hasattr(create_channel_credentials, "_ssl_creds"):
+            create_channel_credentials._ssl_creds = grpc.ssl_channel_credentials()
+        channel_credentials = create_channel_credentials._ssl_creds
+
+    call_credentials = grpc.metadata_call_credentials(_APIAuthPlugin(api_key, metadata))
+
     return grpc.composite_channel_credentials(channel_credentials, call_credentials)
 
 
