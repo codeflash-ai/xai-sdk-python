@@ -89,17 +89,29 @@ def _make_span_response_attributes(
     request: image_pb2.GenerateImageRequest, responses: Sequence[BaseImageResponse]
 ) -> dict[str, Any]:
     """Creates the image sampling span response attributes."""
+    # Precompute format string
+    format_name = image_pb2.ImageFormat.Name(request.format)
+    format_str = format_name.removeprefix("IMG_FORMAT_").lower()
     attributes: dict[str, Any] = {
         "gen_ai.response.model": request.model,
-        "gen_ai.response.image.format": image_pb2.ImageFormat.Name(request.format).removeprefix("IMG_FORMAT_").lower(),
+        "gen_ai.response.image.format": format_str,
     }
 
-    for index, response in enumerate(responses):
-        attributes[f"gen_ai.response.{index}.image.up_sampled_prompt"] = response.prompt
-        if request.format == image_pb2.ImageFormat.IMG_FORMAT_URL:
+    # Cache request.format for fewer attribute lookups in loop
+    req_format = request.format
+
+    # Use loop-local vars and direct dictionary assignment for best locality and efficiency
+    if req_format == image_pb2.ImageFormat.IMG_FORMAT_URL:
+        for index, response in enumerate(responses):
+            attributes[f"gen_ai.response.{index}.image.up_sampled_prompt"] = response.prompt
             attributes[f"gen_ai.response.{index}.image.url"] = response.url
-        elif request.format == image_pb2.ImageFormat.IMG_FORMAT_BASE64:
+    elif req_format == image_pb2.ImageFormat.IMG_FORMAT_BASE64:
+        for index, response in enumerate(responses):
+            attributes[f"gen_ai.response.{index}.image.up_sampled_prompt"] = response.prompt
             attributes[f"gen_ai.response.{index}.image.base64"] = response.base64
+    else:
+        for index, response in enumerate(responses):
+            attributes[f"gen_ai.response.{index}.image.up_sampled_prompt"] = response.prompt
 
     return attributes
 
