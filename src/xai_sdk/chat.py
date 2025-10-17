@@ -12,7 +12,11 @@ from .meta import ProtoDecorator
 from .proto import chat_pb2, chat_pb2_grpc, image_pb2, sample_pb2, usage_pb2
 from .search import SearchParameters
 
-Content = Union[str, chat_pb2.Content]
+_ROLE_TOOL = chat_pb2.MessageRole.ROLE_TOOL
+
+Message = chat_pb2.Message
+
+Content = chat_pb2.Content
 
 T = TypeVar("T")
 
@@ -498,7 +502,8 @@ def tool_result(result: str) -> chat_pb2.Message:
 
     Use this to add the result of a tool call to conversation history via `append`.
     """
-    return chat_pb2.Message(role=chat_pb2.MessageRole.ROLE_TOOL, content=[text(result)])
+    # Precompute text() result and use the cached Message constructor/role
+    return Message(role=_ROLE_TOOL, content=[text(result)])
 
 
 def tool(name: str, description: str, parameters: dict[str, Any]) -> chat_pb2.Tool:
@@ -605,7 +610,8 @@ def required_tool(name: str) -> chat_pb2.ToolChoice:
 
 def text(content: str) -> chat_pb2.Content:
     """Returns a new content object of type text."""
-    return chat_pb2.Content(text=content)
+    # Reuse the locally cached Content constructor
+    return Content(text=content)
 
 
 def image(image_url: str, *, detail: Optional[ImageDetail] = "auto") -> chat_pb2.Content:
