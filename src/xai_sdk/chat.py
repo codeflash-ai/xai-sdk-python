@@ -12,6 +12,8 @@ from .meta import ProtoDecorator
 from .proto import chat_pb2, chat_pb2_grpc, image_pb2, sample_pb2, usage_pb2
 from .search import SearchParameters
 
+_ToolChoice = chat_pb2.ToolChoice
+
 Content = Union[str, chat_pb2.Content]
 
 T = TypeVar("T")
@@ -600,7 +602,7 @@ def required_tool(name: str) -> chat_pb2.ToolChoice:
     `name` must be the name of a tool that has been provided in the `tools` parameter of a chat client's
     `create` method.
     """
-    return chat_pb2.ToolChoice(function_name=name)
+    return _ToolChoice(function_name=name)
 
 
 def text(content: str) -> chat_pb2.Content:
